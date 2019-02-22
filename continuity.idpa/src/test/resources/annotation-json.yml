@@ -1,0 +1,43 @@
+---
+overrides: []
+inputs:
+- !<direct>
+  &Input_foo data:
+  - foo
+- !<json>
+  &Input_json_item_1 type: string
+  name: bar
+  input: *Input_foo
+- !<json>
+  &Input_json_legacy_array type: array
+  name: myarray
+  items:
+  - *Input_json_item_1
+  - *Input_json_item_1
+- !<json>
+  &Input_json_legacy type: object
+  items:
+  - *Input_json_item_1
+  - *Input_json_legacy_array
+- !<json>
+  &Input_json_new json:
+    bar: *Input_foo
+    myarray:
+    - *Input_foo
+    - *Input_foo
+- !<randnum>
+  &Input_random_number lower: 5
+  upper: 42
+- !<randstring>
+  &Input_random_string template: '[0-9A-D]{8}\-[0-9A-D]{4}\-[0-9A-D]{4}\-[0-9A-D]{4}\-[0-9A-D]{12}'
+- !<datetime>
+  &Input_datetime format: yyyy-MM-dd'T'hh-mm-ss
+  offset: P1D
+- !<combined>
+  &Input_combined format: '(1)-(2): (3)'
+  inputs:
+  - *Input_random_number
+  - *Input_foo
+  - *Input_random_string
+endpoint-annotations: []
+

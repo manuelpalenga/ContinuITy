@@ -13,7 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 
 import org.continuity.api.amqp.AmqpApi;
@@ -24,14 +27,18 @@ import org.continuity.api.entities.config.OrderGoal;
 import org.continuity.api.entities.config.OrderMode;
 import org.continuity.api.entities.config.OrderOptions;
 import org.continuity.api.entities.config.WorkloadModelType;
+import org.continuity.api.entities.links.ForecastLinks;
 import org.continuity.api.entities.links.LinkExchangeModel;
 import org.continuity.api.entities.links.LoadTestLinks;
 import org.continuity.api.entities.links.SessionLogsLinks;
+import org.continuity.api.entities.links.SessionsBundlesLinks;
 import org.continuity.api.entities.links.WorkloadModelLinks;
 import org.continuity.api.entities.report.OrderReport;
 import org.continuity.api.entities.report.OrderResponse;
 import org.continuity.api.rest.RestApi;
 import org.continuity.commons.storage.MemoryStorage;
+import org.continuity.commons.utils.WebUtils;
+import org.continuity.dsl.description.ForecastInput;
 import org.continuity.orchestrator.entities.CreationStep;
 import org.continuity.orchestrator.entities.DummyStep;
 import org.continuity.orchestrator.entities.OrderReportCounter;
@@ -39,14 +46,18 @@ import org.continuity.orchestrator.entities.Recipe;
 import org.continuity.orchestrator.entities.RecipeStep;
 import org.continuity.orchestrator.orders.OrderCycleManager;
 import org.continuity.orchestrator.storage.TestingContextStorage;
+import org.continuity.orchestrator.util.LoggingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpIOException;
 import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitManagementTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -81,9 +92,23 @@ public class OrchestrationController {
 	@Autowired
 	private ConnectionFactory connectionFactory;
 
+	@Value("${spring.rabbitmq.host}")
+	private String rabbitHost;
+
+	@Value("${rabbitmq.management.port:15672}")
+	private String rabbitPort;
+
+	@Value("${rabbitmq.management.user:guest}")
+	private String rabbitUser;
+
+	@Value("${rabbitmq.management.password:guest}")
+	private String rabbitPassword;
+
 	@RequestMapping(path = SUBMIT, method = RequestMethod.POST)
 	public ResponseEntity<Object> submitOrder(@RequestBody Order order, HttpServletRequest servletRequest) throws IOException {
 		String orderId = orderCounterStorage.reserve(order.getTag());
+
+		LOGGER.info("{} Received new order with goal {} and ID {}.", LoggingUtils.formatPrefix(orderId), order.getGoal().toPrettyString(), orderId);
 
 		boolean useTestingContext = ((order.getTestingContext() != null) && !order.getTestingContext().isEmpty());
 
@@ -106,14 +131,14 @@ public class OrchestrationController {
 
 			for (Map.Entry<Set<String>, Set<LinkExchangeModel>> entry : sources.entrySet()) {
 				for (LinkExchangeModel source : entry.getValue()) {
-					createAndSubmitRecipe(orderId, order.getTag(), order.getGoal(), order.getMode(), order.getOptions(), entry.getKey(), source, order.getModularizationOptions());
+					createAndSubmitRecipe(orderId, order.getTag(), order.getGoal(), order.getMode(), order.getOptions(),  order.getForecastInput(), entry.getKey(), source, order.getModularizationOptions());
 				}
 			}
 		} else {
 			declareResponseQueue(orderId);
 			orderCounterStorage.putToReserved(orderId, new OrderReportCounter(orderId, 1));
 
-			createAndSubmitRecipe(orderId, order.getTag(), order.getGoal(), order.getMode(), order.getOptions(), order.getTestingContext(), order.getSource(), order.getModularizationOptions());
+			createAndSubmitRecipe(orderId, order.getTag(), order.getGoal(), order.getMode(), order.getOptions(),  order.getForecastInput(), order.getTestingContext(), order.getSource(), order.getModularizationOptions());
 		}
 
 		OrderResponse response = new OrderResponse();
@@ -125,11 +150,11 @@ public class OrchestrationController {
 		return ResponseEntity.accepted().body(response);
 	}
 
-	private void createAndSubmitRecipe(String orderId, String tag, OrderGoal goal, OrderMode mode, OrderOptions options, Set<String> testingContext, LinkExchangeModel source, ModularizationOptions modularizationOptions) {
+	private void createAndSubmitRecipe(String orderId, String tag, OrderGoal goal, OrderMode mode, OrderOptions options, ForecastInput forecastInput, Set<String> testingContext, LinkExchangeModel source, ModularizationOptions modularizationOptions) {
 		boolean useTestingContext = ((testingContext != null) && !testingContext.isEmpty());
 
 		if (useTestingContext) {
-			LOGGER.info("Order {}: Using testing-context {}.", orderId, testingContext);
+			LOGGER.info("{} Using testing-context {}.", LoggingUtils.formatPrefix(orderId), testingContext);
 		}
 
 		if (mode == null) {
@@ -138,7 +163,7 @@ public class OrchestrationController {
 			if (modes.size() == 1) {
 				mode = modes.get(0);
 			} else {
-				LOGGER.error("Order {} is ambiguous! The goal {} is contained in the modes {}.", orderId, goal, modes);
+				LOGGER.error("{} Order is ambiguous! The goal {} is contained in the modes {}.", LoggingUtils.formatPrefix(orderId), goal, modes);
 
 				amqpTemplate.convertAndSend(AmqpApi.Orchestrator.EVENT_FINISHED.name(), AmqpApi.Orchestrator.EVENT_FINISHED.formatRoutingKey().of(orderId),
 						OrderReport.asError(orderId, source, "The order goal is ambiguous: there are " + modes.size() + " possible modes " + modes));
@@ -147,23 +172,23 @@ public class OrchestrationController {
 			}
 		}
 
+		String recipeId = recipeStorage.reserve(tag);
 		List<RecipeStep> recipeSteps = new ArrayList<>();
 
 		for (OrderGoal subGoal : orderCycleManager.getCycle(mode, goal)) {
-			recipeSteps.add(createRecipeStep(tag, subGoal, options));
+			recipeSteps.add(createRecipeStep(orderId, recipeId, tag, subGoal, options));
 		}
 
-		String recipeId = recipeStorage.reserve(tag);
-		LOGGER.info("Processing new recipe {} for order {} with goal {}...", recipeId, orderId, goal);
+		LOGGER.info("{} Processing new recipe with goal {}...", LoggingUtils.formatPrefix(orderId, recipeId), goal);
 
-		Recipe recipe = new Recipe(orderId, recipeId, tag, recipeSteps, source, useTestingContext, testingContext, options, modularizationOptions);
+		Recipe recipe = new Recipe(orderId, recipeId, tag, recipeSteps, source, useTestingContext, testingContext, options, modularizationOptions, forecastInput);
 
 		if (recipe.hasNext()) {
 			recipeStorage.putToReserved(recipeId, recipe);
 
 			recipe.next().execute();
 		} else {
-			LOGGER.info("Recipe {} doesn't require tasks.", recipeId);
+			LOGGER.info("{} No tasks required.", LoggingUtils.formatPrefix(orderId, recipeId));
 
 			amqpTemplate.convertAndSend(AmqpApi.Orchestrator.EVENT_FINISHED.name(), AmqpApi.Orchestrator.EVENT_FINISHED.formatRoutingKey().of(orderId),
 					OrderReport.asSuccessful(orderId, testingContext, recipe.getSource()));
@@ -172,13 +197,13 @@ public class OrchestrationController {
 
 	@RequestMapping(path = WAIT, method = RequestMethod.GET)
 	public ResponseEntity<OrderReport> waitUntilFinished(@PathVariable("id") String orderId, @RequestParam long timeout, HttpServletRequest servletRequest) {
-		LOGGER.info("Waiting {} ms for the result of order {} to be created", timeout, orderId);
+		LOGGER.info("{} Waiting {} ms for the result to be created", LoggingUtils.formatPrefix(orderId), timeout);
 
 		OrderReport report;
 		try {
 			report = amqpTemplate.receiveAndConvert(getResponseQueueName(orderId), timeout, ParameterizedTypeReference.forType(OrderReport.class));
 		} catch (AmqpIOException e) {
-			LOGGER.error("Cannot wait for not existing response queue of recipe {}", orderId);
+			LOGGER.error("{} Cannot wait for not existing response queue of recipe {}", LoggingUtils.formatPrefix(orderId));
 			LOGGER.error("Exception:", e);
 
 			return ResponseEntity.badRequest().body(OrderReport.asError(orderId, null, "There is no such order!"));
@@ -190,17 +215,17 @@ public class OrchestrationController {
 
 			if (reportNumber == reportCounter.getNumReports()) {
 				deleteResponseQueue(orderId);
-				LOGGER.info("Order {}: Returning report number {}/{}. Therefore, deleting the response queue.", orderId, reportNumber, reportCounter.getNumReports());
+				LOGGER.info("{} Returning report number {}/{}. Therefore, deleting the response queue.", LoggingUtils.formatPrefix(orderId), reportNumber, reportCounter.getNumReports());
 			}
 
 			report.setCreatedArtifacts(transfromToExternalLinks(report.getInternalArtifacts(), servletRequest.getServerName() + ":" + servletRequest.getServerPort()));
 			report.setNumber(reportNumber);
 			report.setMax(reportCounter.getNumReports());
 
-			LOGGER.info("Report for order {} is ready.", orderId);
+			LOGGER.info("{} Report is ready.", LoggingUtils.formatPrefix(orderId));
 			return ResponseEntity.ok(report);
 		} else {
-			LOGGER.info("Report for order {} is not ready, yet.", orderId);
+			LOGGER.info("{} Report is not ready yet.", LoggingUtils.formatPrefix(orderId));
 
 			return ResponseEntity.noContent().build();
 		}
@@ -221,21 +246,35 @@ public class OrchestrationController {
 
 	@RequestMapping(path = RESULT, method = RequestMethod.GET)
 	public ResponseEntity<OrderReport> getResultWithoutWaiting(@PathVariable("id") String orderId, HttpServletRequest servletRequest) {
-		LOGGER.info("Trying to get result for order {} without waiting...", orderId);
+		LOGGER.info("{} Trying to get result without waiting...", LoggingUtils.formatPrefix(orderId));
 		return waitUntilFinished(orderId, 0, servletRequest);
 	}
 
-	private RecipeStep createRecipeStep(String tag, OrderGoal goal, OrderOptions options) {
+	private RecipeStep createRecipeStep(String orderId, String recipeId, String tag, OrderGoal goal, OrderOptions options) {
 		RecipeStep step;
 		String stepName = goal.toPrettyString();
 
 		switch (goal) {
 		case CREATE_SESSION_LOGS:
-			step = new CreationStep(stepName, amqpTemplate, AmqpApi.SessionLogs.TASK_CREATE, AmqpApi.SessionLogs.TASK_CREATE.formatRoutingKey().of(tag),
+			step = new CreationStep(stepName, orderId, recipeId, amqpTemplate, AmqpApi.SessionLogs.TASK_CREATE, AmqpApi.SessionLogs.TASK_CREATE.formatRoutingKey().of(tag),
 					isPresent(LinkExchangeModel::getSessionLogsLinks, SessionLogsLinks::getLink));
 			break;
-		case CREATE_WORKLOAD_MODEL:
+		case CREATE_BEHAVIOR_MIX:
 			WorkloadModelType workloadType;
+			if ((options == null) || (options.getWorkloadModelType() == null)) {
+				workloadType = WorkloadModelType.WESSBAS;
+			} else {
+				workloadType = options.getWorkloadModelType();
+			}
+
+			step = new CreationStep(stepName, orderId, recipeId, amqpTemplate, AmqpApi.WorkloadModel.MIX_CREATE, AmqpApi.WorkloadModel.MIX_CREATE.formatRoutingKey().of(workloadType.toPrettyString()),
+					isPresent(LinkExchangeModel::getSessionsBundlesLinks, SessionsBundlesLinks::getLink));
+			break;
+		case CREATE_FORECAST:
+			step = new CreationStep(stepName, orderId, recipeId, amqpTemplate, AmqpApi.Forecast.TASK_CREATE, AmqpApi.Forecast.TASK_CREATE.formatRoutingKey().of("forecast"),
+					isPresent(LinkExchangeModel::getForecastLinks, ForecastLinks::getLink));
+			break;
+		case CREATE_WORKLOAD_MODEL:
 			if ((options == null) || (options.getWorkloadModelType() == null)) {
 				workloadType = WorkloadModelType.WESSBAS;
 			} else {
@@ -245,7 +284,8 @@ public class OrchestrationController {
 			Function<LinkExchangeModel, Boolean> check = all(isPresent(LinkExchangeModel::getWorkloadModelLinks, WorkloadModelLinks::getLink),
 					isEqual(LinkExchangeModel::getWorkloadModelLinks, WorkloadModelLinks::getType, workloadType));
 
-			step = new CreationStep(stepName, amqpTemplate, AmqpApi.WorkloadModel.TASK_CREATE, AmqpApi.WorkloadModel.TASK_CREATE.formatRoutingKey().of(workloadType.toPrettyString()), check);
+			step = new CreationStep(stepName, orderId, recipeId, amqpTemplate, AmqpApi.WorkloadModel.TASK_CREATE,
+					AmqpApi.WorkloadModel.TASK_CREATE.formatRoutingKey().of(workloadType.toPrettyString()), check);
 			break;
 		case CREATE_LOAD_TEST:
 			LoadTestType loadTestType;
@@ -259,7 +299,7 @@ public class OrchestrationController {
 			check = all(isPresent(LinkExchangeModel::getLoadTestLinks, LoadTestLinks::getLink),
 					isEqual(LinkExchangeModel::getLoadTestLinks, LoadTestLinks::getType, loadTestType));
 
-			step = new CreationStep(stepName, amqpTemplate, AmqpApi.LoadTest.TASK_CREATE, AmqpApi.LoadTest.TASK_CREATE.formatRoutingKey().of(loadTestType.toPrettyString()), check);
+			step = new CreationStep(stepName, orderId, recipeId, amqpTemplate, AmqpApi.LoadTest.TASK_CREATE, AmqpApi.LoadTest.TASK_CREATE.formatRoutingKey().of(loadTestType.toPrettyString()), check);
 			break;
 		case EXECUTE_LOAD_TEST:
 			loadTestType = options.getLoadTestType();
@@ -269,7 +309,8 @@ public class OrchestrationController {
 			}
 
 			if (loadTestType.canExecute()) {
-				step = new CreationStep(stepName, amqpTemplate, AmqpApi.LoadTest.TASK_EXECUTE, AmqpApi.LoadTest.TASK_EXECUTE.formatRoutingKey().of(loadTestType.toPrettyString()), links -> false);
+				step = new CreationStep(stepName, orderId, recipeId, amqpTemplate, AmqpApi.LoadTest.TASK_EXECUTE, AmqpApi.LoadTest.TASK_EXECUTE.formatRoutingKey().of(loadTestType.toPrettyString()),
+						links -> false);
 			} else {
 				LOGGER.error("Cannot execute {} tests!", loadTestType);
 				step = new DummyStep(amqpTemplate);
@@ -286,6 +327,22 @@ public class OrchestrationController {
 		return step;
 	}
 
+	@PostConstruct
+	private void clearResponseQueues() {
+		RabbitManagementTemplate template = new RabbitManagementTemplate(WebUtils.buildUrl(rabbitHost, rabbitPort, "/api/"), rabbitUser, rabbitPassword);
+		String regex = AmqpApi.Orchestrator.EVENT_FINISHED.deriveQueueName("(.+)");
+
+		for (Queue queue : template.getQueues()) {
+			Matcher matcher = Pattern.compile(regex).matcher(queue.getName());
+
+			if (matcher.matches()) {
+				LOGGER.info("Deleting finished queue for old order {}.", matcher.group(1));
+
+				template.deleteQueue(queue);
+			}
+		}
+	}
+
 	private void declareResponseQueue(String orderId) {
 		try {
 			Connection connection = connectionFactory.createConnection();
@@ -295,7 +352,7 @@ public class OrchestrationController {
 			channel.queueDeclare(queueName, false, false, false, Collections.emptyMap());
 			channel.queueBind(queueName, AmqpApi.Orchestrator.EVENT_FINISHED.name(), AmqpApi.Orchestrator.EVENT_FINISHED.formatRoutingKey().of(orderId));
 
-			LOGGER.info("Declared a response queue for {}.", orderId);
+			LOGGER.info("{} Declared a response queue.", LoggingUtils.formatPrefix(orderId));
 		} catch (IOException e) {
 			LOGGER.error("Could not create a response queue!", e);
 		}
@@ -309,14 +366,14 @@ public class OrchestrationController {
 			String queueName = getResponseQueueName(orderId);
 			channel.queueDelete(queueName);
 
-			LOGGER.info("Deleted the response queue for {}.", orderId);
+			LOGGER.info("{} Deleted the response queue.", LoggingUtils.formatPrefix(orderId));
 		} catch (IOException e) {
 			LOGGER.error("Could not create a response queue!", e);
 		}
 	}
 
-	private String getResponseQueueName(String recipeId) {
-		return AmqpApi.Orchestrator.EVENT_FINISHED.deriveQueueName(recipeId);
+	private String getResponseQueueName(String orderId) {
+		return AmqpApi.Orchestrator.EVENT_FINISHED.deriveQueueName(orderId);
 	}
 
 	private LinkExchangeModel transfromToExternalLinks(LinkExchangeModel internal, String host) {

@@ -22,15 +22,20 @@ public class LinkExchangeModel {
 	@JsonManagedReference
 	private final IdpaLinks idpaLinks = new IdpaLinks(this);
 
-	@JsonProperty(value = "external-data", required = false)
+	@JsonProperty(value = "measurement-data", required = false)
 	@JsonInclude(value = Include.CUSTOM, valueFilter = AbstractLinks.ValueFilter.class)
 	@JsonManagedReference
-	private final ExternalDataLinks externalDataLinks = new ExternalDataLinks(this);
+	private final MeasurementDataLinks measurementDataLinks = new MeasurementDataLinks(this);
 
 	@JsonProperty(value = "session-logs", required = false)
 	@JsonInclude(value = Include.CUSTOM, valueFilter = AbstractLinks.ValueFilter.class)
 	@JsonManagedReference
 	private final SessionLogsLinks sessionLogsLinks = new SessionLogsLinks(this);
+	
+	@JsonProperty(value = "forecast", required = false)
+	@JsonInclude(value = Include.CUSTOM, valueFilter = AbstractLinks.ValueFilter.class)
+	@JsonManagedReference
+	private final ForecastLinks forecastLinks = new ForecastLinks(this);
 
 	@JsonProperty(value = "workload-model", required = false)
 	@JsonInclude(value = Include.CUSTOM, valueFilter = AbstractLinks.ValueFilter.class)
@@ -41,6 +46,11 @@ public class LinkExchangeModel {
 	@JsonInclude(value = Include.CUSTOM, valueFilter = AbstractLinks.ValueFilter.class)
 	@JsonManagedReference
 	private final LoadTestLinks loadTestLinks = new LoadTestLinks(this);
+	
+	@JsonProperty(value = "sessions-bundles", required = false)
+	@JsonInclude(value = Include.CUSTOM, valueFilter = AbstractLinks.ValueFilter.class)
+	@JsonManagedReference
+	private final SessionsBundlesLinks sessionsBundlesLinks = new SessionsBundlesLinks(this);
 
 	public String getTag() {
 		return tag;
@@ -55,12 +65,16 @@ public class LinkExchangeModel {
 		return idpaLinks;
 	}
 
-	public ExternalDataLinks getExternalDataLinks() {
-		return externalDataLinks;
+	public MeasurementDataLinks getMeasurementDataLinks() {
+		return measurementDataLinks;
 	}
 
 	public SessionLogsLinks getSessionLogsLinks() {
 		return sessionLogsLinks;
+	}
+	
+	public ForecastLinks getForecastLinks() {
+		return forecastLinks;
 	}
 
 	public WorkloadModelLinks getWorkloadModelLinks() {
@@ -69,6 +83,10 @@ public class LinkExchangeModel {
 
 	public LoadTestLinks getLoadTestLinks() {
 		return loadTestLinks;
+	}
+	
+	public SessionsBundlesLinks getSessionsBundlesLinks() {
+		return sessionsBundlesLinks;
 	}
 
 	public void merge(LinkExchangeModel other) {

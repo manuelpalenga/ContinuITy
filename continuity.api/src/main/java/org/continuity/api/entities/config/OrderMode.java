@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum OrderMode {
 
-	PAST_WORKLOAD;
+	PAST_SESSIONS, PAST_REQUESTS, FORECASTED_WORKLOAD;
 
 	private static final Map<String, OrderMode> prettyStringToMode = new HashMap<>();
 

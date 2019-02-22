@@ -3,12 +3,16 @@ language: java
 jdk:
   - oraclejdk8
 
+branches:
+  only:
+  - master
+
 services:
   - docker
 env:
   global:
     - GIT_MAJOR_VERSION=1
-    - GIT_MINOR_VERSION=2
+    - GIT_MINOR_VERSION=4
 after_success:
   - if [ $TRAVIS_PULL_REQUEST == false ] && [ $TRAVIS_BRANCH == "master" ]; then
 
@@ -29,6 +33,11 @@ after_success:
     docker tag continuityproject/wessbas continuityproject/wessbas:latest;
     docker push continuityproject/wessbas:latest;
 
+    docker tag continuityproject/request-rates continuityproject/request-rates:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
+    docker push continuityproject/request-rates:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
+    docker tag continuityproject/request-rates continuityproject/request-rates:latest;
+    docker push continuityproject/request-rates:latest;
+
     docker tag continuityproject/session-logs continuityproject/session-logs:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
     docker push continuityproject/session-logs:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
     docker tag continuityproject/session-logs continuityproject/session-logs:latest;
@@ -48,6 +57,16 @@ after_success:
     docker push continuityproject/eureka:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
     docker tag continuityproject/eureka continuityproject/eureka:latest;
     docker push continuityproject/eureka:latest;
+
+    docker tag continuityproject/benchflow continuityproject/benchflow:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
+    docker push continuityproject/benchflow:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
+    docker tag continuityproject/benchflow continuityproject/benchflow:latest;
+    docker push continuityproject/benchflow:latest;
+
+    docker tag continuityproject/forecast continuityproject/forecast:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
+    docker push continuityproject/forecast:$GIT_MAJOR_VERSION.$GIT_MINOR_VERSION.$TRAVIS_BUILD_NUMBER;
+    docker tag continuityproject/forecast continuityproject/forecast:latest;
+    docker push continuityproject/forecast:latest;
     fi
 
 script:

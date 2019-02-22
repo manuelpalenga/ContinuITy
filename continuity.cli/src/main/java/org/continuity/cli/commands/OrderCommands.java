@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.continuity.api.entities.config.LoadTestType;
 import org.continuity.api.entities.config.ModularizationApproach;
@@ -18,14 +20,20 @@ import org.continuity.api.entities.config.OrderGoal;
 import org.continuity.api.entities.config.OrderMode;
 import org.continuity.api.entities.config.OrderOptions;
 import org.continuity.api.entities.config.WorkloadModelType;
-import org.continuity.api.entities.links.ExternalDataLinkType;
+import org.continuity.api.entities.links.MeasurementDataLinkType;
 import org.continuity.api.entities.links.LinkExchangeModel;
+import org.continuity.api.entities.links.SessionsStatus;
 import org.continuity.api.entities.report.OrderReport;
 import org.continuity.api.entities.report.OrderResponse;
 import org.continuity.api.rest.RestApi;
 import org.continuity.cli.config.PropertiesProvider;
 import org.continuity.cli.storage.OrderStorage;
 import org.continuity.commons.utils.WebUtils;
+import org.continuity.dsl.description.ForecastInput;
+import org.continuity.dsl.description.ContextParameter;
+import org.continuity.dsl.description.ForecastOptions;
+import org.continuity.dsl.description.IntensityCalculationInterval;
+import org.continuity.dsl.description.Measurement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -165,7 +173,7 @@ public class OrderCommands {
 	private Order initializeOrder() {
 		Order order = new Order();
 
-		order.setMode(OrderMode.PAST_WORKLOAD);
+		order.setMode(OrderMode.PAST_SESSIONS);
 
 		order.setTag("TAG");
 		order.setTestingContext(Collections.singleton("CONTEXT"));
@@ -176,7 +184,15 @@ public class OrderCommands {
 		options.setRampup(1);
 		options.setLoadTestType(LoadTestType.JMETER);
 		options.setWorkloadModelType(WorkloadModelType.WESSBAS);
+		options.setIntensityCalculationInterval(IntensityCalculationInterval.MINUTE);
 		order.setOptions(options);
+		
+		Measurement measurement = new Measurement("Name of measurement containing contextual data");
+		List<ContextParameter> covariates = new LinkedList<ContextParameter>();
+		covariates.add(measurement);
+		ForecastOptions forecastOpt = new ForecastOptions("2019/01/01 00:00:00", IntensityCalculationInterval.HOUR, "telescope or prophet", "http://localhost:8086");
+		ForecastInput forecastInput = new ForecastInput(covariates, forecastOpt);
+		order.setForecastInput(forecastInput);
 
 		ModularizationOptions modularizationOptions = new ModularizationOptions();
 		HashMap<String, String> services = new HashMap<String, String>();
@@ -186,8 +202,10 @@ public class OrderCommands {
 		modularizationOptions.setModularizationApproach(ModularizationApproach.SESSION_LOGS);
 		order.setModularizationOptions(modularizationOptions);
 		LinkExchangeModel links = new LinkExchangeModel();
-		links.getExternalDataLinks().setLink("LINK_TO_DATA").setTimestamp(new Date(0)).setLinkType(ExternalDataLinkType.OPEN_XTRACE);
+		links.getMeasurementDataLinks().setLink("LINK_TO_DATA").setTimestamp(new Date(0)).setLinkType(MeasurementDataLinkType.OPEN_XTRACE);
 		links.getSessionLogsLinks().setLink("SESSION_LOGS_LINK");
+		links.getSessionsBundlesLinks().setLink("SESSIONS_BUNDLES_LINKS").setStatus(SessionsStatus.NOT_CHANGED);
+		links.getForecastLinks().setLink("FORECAST_LINKS");
 		links.getWorkloadModelLinks().setType(WorkloadModelType.WESSBAS).setLink("WORKLOAD_MODEL_LINK");
 		links.getLoadTestLinks().setType(LoadTestType.JMETER).setLink("LOADTEST_LINK");
 		order.setSource(links);

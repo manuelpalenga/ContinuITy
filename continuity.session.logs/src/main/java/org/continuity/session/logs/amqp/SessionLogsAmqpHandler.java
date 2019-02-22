@@ -1,13 +1,14 @@
 package org.continuity.session.logs.amqp;
 
 import java.util.Date;
+import java.util.EnumSet;
 
 import org.continuity.api.amqp.AmqpApi;
 import org.continuity.api.entities.artifact.SessionLogs;
 import org.continuity.api.entities.config.ModularizationApproach;
 import org.continuity.api.entities.config.ModularizationOptions;
 import org.continuity.api.entities.config.TaskDescription;
-import org.continuity.api.entities.links.ExternalDataLinkType;
+import org.continuity.api.entities.links.MeasurementDataLinkType;
 import org.continuity.api.entities.links.LinkExchangeModel;
 import org.continuity.api.entities.report.TaskError;
 import org.continuity.api.entities.report.TaskReport;
@@ -46,16 +47,20 @@ public class SessionLogsAmqpHandler {
 	public void createSessionLogs(TaskDescription task) {
 		TaskReport report;
 		String tag = task.getTag();
-		String link = task.getSource().getExternalDataLinks().getLink();
-		boolean useOpenXtrace = task.getSource().getExternalDataLinks().getLinkType().equals(ExternalDataLinkType.OPEN_XTRACE) ? true : false;
+		String link = task.getSource().getMeasurementDataLinks().getLink();
 		boolean applyModularization = false;
 
 		if (null != task.getModularizationOptions()) {
 			ModularizationOptions modularizationOptions = task.getModularizationOptions();
-			applyModularization = modularizationOptions.getModularizationApproach().equals(ModularizationApproach.SESSION_LOGS) ? true : false;
+			applyModularization = modularizationOptions.getModularizationApproach().equals(ModularizationApproach.SESSION_LOGS);
 		}
-		Date timestamp = task.getSource().getExternalDataLinks().getTimestamp();
+		Date timestamp = task.getSource().getMeasurementDataLinks().getTimestamp();
 
+		if (!EnumSet.of(MeasurementDataLinkType.OPEN_XTRACE, MeasurementDataLinkType.INSPECTIT).contains(task.getSource().getMeasurementDataLinks().getLinkType())) {
+			LOGGER.error("Task {}: cannot create session logs for tag {}, link {}, and timestamp {}. External data type {} is not supported!", task.getTaskId(), tag, link, timestamp,
+					task.getSource().getMeasurementDataLinks().getLinkType());
+			report = TaskReport.error(task.getTaskId(), TaskError.ILLEGAL_TYPE);
+		}
 		if ((tag == null) || (link == null) || (timestamp == null)) {
 			LOGGER.error("Task {}: cannot create session logs for tag {}, link {}, and timestamp {}. All values are required!", task.getTaskId(), tag, link, timestamp);
 			report = TaskReport.error(task.getTaskId(), TaskError.MISSING_SOURCE);
@@ -67,12 +72,12 @@ public class SessionLogsAmqpHandler {
 
 			if (applyModularization) {
 				LOGGER.info("Task {}: Creating modularized session logs for tags {} from data {} ...", task.getTaskId(), task.getModularizationOptions().getServices().keySet(), link);
-				sessionLog = manager.runPipeline(useOpenXtrace, task.getModularizationOptions().getServices());
+				sessionLog = manager.runPipeline(task.getSource().getMeasurementDataLinks().getLinkType(), task.getModularizationOptions().getServices());
 			} else {
 				LOGGER.info("Task {}: Creating session logs for tag {} from data {} ...", task.getTaskId(), tag, link);
-				sessionLog = manager.runPipeline(useOpenXtrace);
+				sessionLog = manager.runPipeline(task.getSource().getMeasurementDataLinks().getLinkType());
 			}
-			String id = storage.put(new SessionLogs(task.getSource().getExternalDataLinks().getTimestamp(), sessionLog), tag);
+			String id = storage.put(new SessionLogs(task.getSource().getMeasurementDataLinks().getTimestamp(), sessionLog), tag);
 			String sessionLink = RestApi.SessionLogs.GET.requestUrl(id).withoutProtocol().get();
 
 			report = TaskReport.successful(task.getTaskId(), new LinkExchangeModel().getSessionLogsLinks().setLink(sessionLink).parent());
