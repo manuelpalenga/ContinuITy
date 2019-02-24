@@ -19,9 +19,12 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * @author Henning Schulz
  *
  */
-@JsonPropertyOrder({ "overrides", "inputs", "endpoint-annotations" })
+@JsonPropertyOrder({ "version", "overrides", "inputs", "endpoint-annotations" })
 public class ApplicationAnnotation extends OverrideableAnnotation<PropertyOverrideKey.Any> {
 
+	@JsonProperty(value = "version")
+	private String version;
+	
 	@JsonProperty(value = "inputs")
 	private List<Input> inputs;
 
@@ -82,6 +85,25 @@ public class ApplicationAnnotation extends OverrideableAnnotation<PropertyOverri
 	 */
 	public void setEndpointAnnotations(List<EndpointAnnotation> endpointAnnotations) {
 		this.endpointAnnotations = endpointAnnotations;
+	}
+	
+	/**
+	 * Sets the version.
+	 * 
+	 * @param version
+	 * 			The version.
+	 */
+	public void setVersion(String version) {
+		this.version = version;
+	}
+	
+	/**
+	 * Returns the version.
+	 * 
+	 * @return The version.
+	 */
+	public String getVersion() {
+		return version;
 	}
 
 }

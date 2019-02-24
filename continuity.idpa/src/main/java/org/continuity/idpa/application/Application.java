@@ -17,9 +17,11 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
  * @author Henning Schulz
  *
  */
-@JsonPropertyOrder({ "timestamp", "endpoints" })
+@JsonPropertyOrder({ "version", "timestamp", "endpoints" })
 public class Application extends AbstractIdpaElement {
 
+	private String version;
+	
 	/**
 	 * Default value is the date when the object was created.
 	 */
@@ -67,6 +69,25 @@ public class Application extends AbstractIdpaElement {
 	 */
 	public void setTimestamp(Date timestamp) {
 		this.timestamp = timestamp;
+	}
+	
+	/**
+	 * Gets the version of the system.
+	 * 
+	 * @return The version.
+	 */
+	public String getVersion() {
+		return version;
+	}
+	
+	/**
+	 * Sets the version of the system.
+	 * 
+	 * @param version
+	 * 				The version.
+	 */
+	public void setVersion(String version) {
+		this.version = version;
 	}
 
 	public void addEndpoint(Endpoint<?> endpoint) {

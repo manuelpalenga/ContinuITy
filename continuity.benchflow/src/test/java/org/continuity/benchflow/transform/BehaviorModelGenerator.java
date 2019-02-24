@@ -49,6 +49,9 @@ public class BehaviorModelGenerator {
 			case 6:
 				basicBehavior = new BehaviorWithInitialState();
 				break;
+			case 7:
+				basicBehavior = new BehaviorWithCSVFormParameter();
+				break;				
 			} 
 			Behavior behavior = new Behavior();
 			behavior.setMarkovStates(basicBehavior.createMarkovStates());	
@@ -315,6 +318,43 @@ public class BehaviorModelGenerator {
 			transition.setProbability(probability);	
 			
 			return transition;
+		}
+	}
+	
+	private class BehaviorWithCSVFormParameter implements TestBehavior {
+		
+		public String getBehaviorName() {
+			return "Behavior_CSVFormParameter";
+		}
+		
+		public String getInitialState() {
+			return "productUsingPOST";
+		}
+		
+		public List<MarkovState> createMarkovStates(){
+			
+			List<MarkovState> markovStates = new ArrayList<MarkovState>();
+			
+			MarkovState state1 = createMarkovState("productUsingPOST");
+			state1.setTransitions(createTransitions());
+			
+			MarkovState state2 = createMarkovState("languageUsingPOST");
+					
+			markovStates.add(state1);
+			markovStates.add(state2);
+			
+			return markovStates;
+		}
+		
+		private List<Transition> createTransitions(){
+			
+			List<Transition> transitions = new ArrayList<Transition>();
+			Transition transition1 = new Transition();
+			transition1.setTargetState("languageUsingPOST");
+			transition1.setProbability(0.9);	
+			transitions.add(transition1);
+			
+			return transitions;
 		}
 	}
 	

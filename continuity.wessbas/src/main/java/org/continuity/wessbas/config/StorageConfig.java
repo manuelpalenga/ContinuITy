@@ -2,6 +2,8 @@ package org.continuity.wessbas.config;
 
 import java.nio.file.Paths;
 
+import org.continuity.api.entities.artifact.BehaviorModel;
+import org.continuity.commons.storage.MemoryStorage;
 import org.continuity.commons.storage.MixedStorage;
 import org.continuity.wessbas.entities.BehaviorModelPack;
 import org.continuity.wessbas.entities.WessbasBundle;
@@ -21,6 +23,11 @@ public class StorageConfig {
 	@Bean
 	public MixedStorage<BehaviorModelPack> behaviorModelStorage(@Value("${storage.path:storage}") String storagePath) {
 		return new MixedStorage<>(Paths.get(storagePath), new BehaviorModelPack());
+	}
+	
+	@Bean
+	public MemoryStorage<BehaviorModel> behaviorStorage() {
+		return new MemoryStorage<>(BehaviorModel.class);
 	}
 
 }

@@ -2,6 +2,7 @@ package org.continuity.commons.storage;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -109,6 +110,11 @@ public abstract class FileStorage<T> implements ArtifactStorage<T> {
 		}
 	}
 
+	@Override
+	public Map<String, T> getAll() {
+		throw new UnsupportedOperationException("FileStorage.getAll is not supported!");
+	}
+	
 	@Override
 	public boolean remove(String id) {
 		try {

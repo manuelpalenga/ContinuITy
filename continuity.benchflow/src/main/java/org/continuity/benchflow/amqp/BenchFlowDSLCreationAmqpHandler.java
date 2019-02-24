@@ -12,7 +12,7 @@ import org.continuity.api.rest.RestApi.IdpaAnnotation;
 import org.continuity.api.rest.RestApi.IdpaApplication;
 import org.continuity.benchflow.artifact.ContinuITyModel;
 import org.continuity.benchflow.config.RabbitMqConfig;
-import org.continuity.benchflow.transform.ModelTransformater;
+import org.continuity.benchflow.transform.ModelTransformator;
 import org.continuity.commons.storage.MemoryStorage;
 import org.continuity.commons.utils.WebUtils;
 import org.continuity.idpa.annotation.ApplicationAnnotation;
@@ -73,7 +73,7 @@ public class BenchFlowDSLCreationAmqpHandler {
 				LOGGER.error("The workload model at {} does not provide all required input fields!", workloadModelLink);
 				report = TaskReport.error(task.getTaskId(), TaskError.MISSING_SOURCE);
 			} else {
-				ModelTransformater modelConverter = new ModelTransformater();
+				ModelTransformator modelConverter = new ModelTransformator();
 				HttpWorkload benchflowWorkload = modelConverter.transformToBenchFlow(continuITyModel);
 
 				String id = storage.put(benchflowWorkload, task.getTag());

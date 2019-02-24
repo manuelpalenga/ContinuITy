@@ -44,6 +44,11 @@ public class MemoryStorage<T> implements ArtifactStorage<T> {
 	public T get(String id) {
 		return storedEntities.get(id);
 	}
+	
+	@Override
+	public Map<String, T> getAll() {
+		return storedEntities;
+	}
 
 	@Override
 	public boolean remove(String id) {

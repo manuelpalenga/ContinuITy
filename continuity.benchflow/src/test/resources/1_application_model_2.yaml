@@ -1,5 +1,5 @@
 --- 
-&application-test-2 timestamp: 2018-09-01T15-30-00-000Z
+&application-test-2 version: 1.2.4 
 endpoints: 
 - !<http> 
   &loginUsingPOST domain: 172.12.145.67 

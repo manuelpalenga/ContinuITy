@@ -9,6 +9,8 @@ import m4jdsl.WorkloadModel;
 
 public class WessbasBundle {
 
+	private String version;
+	
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH-mm-ss-SSSX")
 	private Date timestamp;
 
@@ -19,8 +21,21 @@ public class WessbasBundle {
 		this.timestamp = timestamp;
 		this.workloadModel = workloadModel;
 	}
+	
+	public WessbasBundle(String version, WorkloadModel workloadModel) {
+		this.version = version;
+		this.workloadModel = workloadModel;
+	}
 
 	public WessbasBundle() {
+	}
+	
+	public String getVersion() {
+		return version;
+	}
+
+	public void setVersion(String version) {
+		this.version = version;
 	}
 
 	public Date getTimestamp() {

@@ -62,6 +62,11 @@ public class ContinuITyIDPAGenerator {
 		HttpEndpoint interf8 = initHttpEndpoint("localhost", "8080", "POST", "/transform", "transformUsingPOST", "http");
 		system.addEndpoint(interf8);		
 		addHttpParamter(interf8, HttpParameterType.BODY, "content_json_BODY", "content_json");
+		
+		HttpEndpoint interf9 = initHttpEndpoint("localhost", "8080", "POST", "/language", "languageUsingPOST", "http");
+		system.addEndpoint(interf9);		
+		addHttpParamter(interf9, HttpParameterType.FORM, "language_FORM", "language");
+		addHttpParamter(interf9, HttpParameterType.FORM, "area_FORM", "area");
 
 		system.addEndpoint(initHttpEndpoint("localhost", "8080", "GET", "/logout", "logoutUsingGET", "http"));
 		system.addEndpoint(initHttpEndpoint("localhost", "8080", "POST", "/product", "productUsingPOST", "http"));
@@ -99,6 +104,7 @@ public class ContinuITyIDPAGenerator {
 		HttpEndpoint interfaceSelect = (HttpEndpoint) endpoints.stream().filter(e -> e.getId().equals("selectUsingGET")).findAny().get();
 		HttpEndpoint interfaceItem = (HttpEndpoint) endpoints.stream().filter(e -> e.getId().equals("itemSelectionUsingPOST")).findAny().get();
 		HttpEndpoint interfaceAccount = (HttpEndpoint) endpoints.stream().filter(e -> e.getId().equals("accountUsingPOST")).findAny().get();
+		HttpEndpoint interfaceLanguage = (HttpEndpoint) endpoints.stream().filter(e -> e.getId().equals("languageUsingPOST")).findAny().get();
 		
 		// With body parameters
 		HttpEndpoint interfaceConvert = (HttpEndpoint) endpoints.stream().filter(e -> e.getId().equals("convertUsingPOST")).findAny().get();
@@ -111,20 +117,20 @@ public class ContinuITyIDPAGenerator {
 		
 		// Input
 
-		DirectListInput userElement = new DirectListInput();
-		userElement.setId("Input_user_REQ_PARAM");
-		userElement.getData().add("foo");
-		userElement.getData().add("bar");
+		DirectListInput inputUserElement = this.createDirectListInput("Input_user_REQ_PARAM",
+		"foo", "bar");
 
-		CsvInput csvInput = new CsvInput();
-		csvInput.setId("Input_csv");
-		csvInput.setFilename("myfile.csv");
-		csvInput.setColumn(3);
-		csvInput.getAssociated().add(userElement);
+		CsvInput csvInputLanguage = new CsvInput();
+		csvInputLanguage.setId("Input_csv_language");
+		csvInputLanguage.setFilename("languages.csv");
+		csvInputLanguage.setSeparator(",");
 		
-		DirectListInput passwordElement = new DirectListInput();
-		passwordElement.setId("Input_password_REQ_PARAM");
-		passwordElement.getData().add("admin");
+		CsvInput csvInputLanguageArea = new CsvInput();
+		csvInputLanguageArea.setId("Input_csv_language_area");
+		csvInputLanguageArea.setFilename("languages.csv");
+		csvInputLanguageArea.setSeparator(",");
+		
+		DirectListInput inputPassword = this.createDirectListInput("Input_password_REQ_PARAM", "admin");
 
 		ExtractedInput extrInputToken = new ExtractedInput();
 		extrInputToken.setId("Input_extracted_token");
@@ -146,40 +152,24 @@ public class ContinuITyIDPAGenerator {
 		extr3.setPattern("<input name=\"item\" type=\"hidden\" value=\"(.*)\"/>");
 		extrInputItem.getExtractions().add(extr3);
 		
-		DirectListInput searchItemElement = new DirectListInput();
-		searchItemElement.setId("Input_item_FORM");
-		searchItemElement.getData().add("42");
+		DirectListInput inputSearchItem = this.createDirectListInput("Input_item_FORM", "42");
 		
-		DirectListInput colorElement = new DirectListInput();
-		colorElement.setId("Input_color");
-		colorElement.getData().add("black");
-		colorElement.getData().add("red");
-		colorElement.getData().add("blue");
+		DirectListInput inputColor = this.createDirectListInput("Input_color",
+		"black", "red", "blue");
 		
-		DirectListInput selectProductElement = new DirectListInput();
-		selectProductElement.setId("Input_product_URL_PART");
-		selectProductElement.getData().add("car");
-		selectProductElement.getData().add("bike");
+		DirectListInput inputSelectProduct = this.createDirectListInput("Input_product_URL_PART",
+		"car", "bike");
 			
-		DirectListInput itemSelectionCategoryElement = new DirectListInput();
-		itemSelectionCategoryElement.setId("Input_category_URL_PARAM");
-		itemSelectionCategoryElement.getData().add("top");
-		itemSelectionCategoryElement.getData().add("bottom");
+		DirectListInput inputItemSelectionCategory = this.createDirectListInput("Input_category_URL_PARAM",
+		"top", "bottom");
 		
-		DirectListInput itemSelectionIdElement = new DirectListInput();
-		itemSelectionIdElement.setId("Input_id_REQ_PARAM");
-		itemSelectionIdElement.getData().add("123");
+		DirectListInput inputItemSelectionId = this.createDirectListInput("Input_id_REQ_PARAM", "123");
 		
-		DirectListInput itemSelectionPriceElement = new DirectListInput();
-		itemSelectionPriceElement.setId("Input_price_FORM");
-		itemSelectionPriceElement.getData().add("0.12");
-		itemSelectionPriceElement.getData().add("12.34");
-		itemSelectionPriceElement.getData().add("987.65");
+		DirectListInput inputItemSelectionPrice = this.createDirectListInput("Input_price_FORM",
+		"0.12", "12.34", "987.65");
 		
-		DirectListInput convertXmlElement = new DirectListInput();
-		convertXmlElement.setId("Input_xml_BODY");
-		convertXmlElement.getData().add("<xml><p>Hello</p></xml>");
-		convertXmlElement.getData().add("<xml><div>World</div></xml>");
+		DirectListInput inputConvertedXml = this.createDirectListInput("Input_xml_BODY",
+		"<xml><p>Hello</p></xml>", "<xml><div>World</div></xml>");
 		
 		ExtractedInput extrInputTransform = new ExtractedInput();
 		extrInputTransform.setId("Input_extracted_content_json");
@@ -192,18 +182,19 @@ public class ContinuITyIDPAGenerator {
 		// Annotation
 
 		ApplicationAnnotation annotation = new ApplicationAnnotation();
-		annotation.getInputs().add(userElement);
-		annotation.getInputs().add(csvInput);
+		annotation.getInputs().add(inputUserElement);
+		annotation.getInputs().add(csvInputLanguage);
+		annotation.getInputs().add(csvInputLanguageArea);
 		annotation.getInputs().add(extrInputToken);
 		annotation.getInputs().add(extrInputItem);	
-		annotation.getInputs().add(passwordElement);
-		annotation.getInputs().add(searchItemElement);
-		annotation.getInputs().add(colorElement);
-		annotation.getInputs().add(selectProductElement);
-		annotation.getInputs().add(itemSelectionIdElement);
-		annotation.getInputs().add(itemSelectionCategoryElement);
-		annotation.getInputs().add(itemSelectionPriceElement);
-		annotation.getInputs().add(convertXmlElement);
+		annotation.getInputs().add(inputPassword);
+		annotation.getInputs().add(inputSearchItem);
+		annotation.getInputs().add(inputColor);
+		annotation.getInputs().add(inputSelectProduct);
+		annotation.getInputs().add(inputItemSelectionId);
+		annotation.getInputs().add(inputItemSelectionCategory);
+		annotation.getInputs().add(inputItemSelectionPrice);
+		annotation.getInputs().add(inputConvertedXml);
 		annotation.getInputs().add(extrInputTransform);
 		annotation.setId("ANN");
 	
@@ -214,28 +205,17 @@ public class ContinuITyIDPAGenerator {
 		ov.setValue("localhost");
 		interfaceAnnLogin.addOverride(ov);
 
-		addParameterAnnotation(interfaceAnnLogin, interfaceLogin, userElement, passwordElement);
+		addParameterAnnotation(interfaceAnnLogin, interfaceLogin, inputUserElement, inputPassword);
 		
-		EndpointAnnotation interfaceAnnSearch = createEndpointAnnotation(annotation, interfaceSearch);		
-		addParameterAnnotation(interfaceAnnSearch, interfaceSearch, searchItemElement, colorElement);
-	
-		EndpointAnnotation interfaceAnnBuy = createEndpointAnnotation(annotation, interfaceBuy);		
-		addParameterAnnotation(interfaceAnnBuy, interfaceBuy, extrInputToken);
+		this.appendEndpointAnnotation(annotation, interfaceSearch, inputSearchItem, inputColor);
+		this.appendEndpointAnnotation(annotation, interfaceBuy, extrInputToken);
+		this.appendEndpointAnnotation(annotation, interfaceSelect, inputSelectProduct, inputColor);
+		this.appendEndpointAnnotation(annotation, interfaceItem, inputItemSelectionCategory, inputItemSelectionId, inputItemSelectionPrice);
 		
-		EndpointAnnotation interfaceAnnSelect = createEndpointAnnotation(annotation, interfaceSelect);		
-		addParameterAnnotation(interfaceAnnSelect, interfaceSelect, selectProductElement, colorElement);
-		
-		EndpointAnnotation interfaceAnnItem = createEndpointAnnotation(annotation, interfaceItem);		
-		addParameterAnnotation(interfaceAnnItem, interfaceItem, itemSelectionCategoryElement, itemSelectionIdElement, itemSelectionPriceElement);
-		
-		EndpointAnnotation interfaceAnnAccount = createEndpointAnnotation(annotation, interfaceAccount);		
-		addParameterAnnotation(interfaceAnnAccount, interfaceAccount, extrInputToken, extrInputItem);
-		
-		EndpointAnnotation interfaceAnnConvert = createEndpointAnnotation(annotation, interfaceConvert);		
-		addParameterAnnotation(interfaceAnnConvert, interfaceConvert, convertXmlElement);	
-		
-		EndpointAnnotation interfaceAnnTransform = createEndpointAnnotation(annotation, interfaceTransform);		
-		addParameterAnnotation(interfaceAnnTransform, interfaceTransform, extrInputTransform);	
+		this.appendEndpointAnnotation(annotation, interfaceAccount, extrInputToken, extrInputItem);
+		this.appendEndpointAnnotation(annotation, interfaceConvert, inputConvertedXml);
+		this.appendEndpointAnnotation(annotation, interfaceTransform, extrInputTransform);
+		this.appendEndpointAnnotation(annotation, interfaceLanguage, csvInputLanguage, csvInputLanguageArea);
 		
 		// Interfaces without parameters
 		createEndpointAnnotation(annotation, interfaceLogout);
@@ -243,6 +223,20 @@ public class ContinuITyIDPAGenerator {
 		createEndpointAnnotation(annotation, interfaceStart);
 		
 		return annotation;
+	}
+	
+	private DirectListInput createDirectListInput(final String id, final String... values) {
+		DirectListInput input = new DirectListInput();
+		input.setId(id);
+		for(String value : values) {
+			input.getData().add(value);
+		}
+		return input;
+	}
+	
+	private void appendEndpointAnnotation(ApplicationAnnotation annotation, HttpEndpoint endpoint, Input... input) {
+		EndpointAnnotation endpointAnnotation = createEndpointAnnotation(annotation, endpoint);		
+		this.addParameterAnnotation(endpointAnnotation, endpoint, input);	
 	}
 	
 	private EndpointAnnotation createEndpointAnnotation(ApplicationAnnotation annotation, HttpEndpoint endpoint) {

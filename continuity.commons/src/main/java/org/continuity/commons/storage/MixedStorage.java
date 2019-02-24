@@ -1,6 +1,7 @@
 package org.continuity.commons.storage;
 
 import java.nio.file.Path;
+import java.util.Map;
 
 public class MixedStorage<T> implements ArtifactStorage<T> {
 
@@ -99,6 +100,26 @@ public class MixedStorage<T> implements ArtifactStorage<T> {
 		} else {
 			return memoryStorage.get(id);
 		}
+	}
+	
+	/**
+	 * Returns all entities.
+	 *
+	 * @param persist
+	 *            Whether the {@link FileStorage} should be used.
+	 * @return The created id.
+	 */
+	public Map<String, T> getAll(boolean persist) {
+		if (persist) {
+			return fileStorage.getAll();
+		} else {
+			return memoryStorage.getAll();
+		}
+	}
+	
+	@Override
+	public Map<String, T> getAll() {
+		return this.getAll(false);
 	}
 
 	@Override

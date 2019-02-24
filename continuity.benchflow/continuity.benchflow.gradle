@@ -10,6 +10,8 @@ dependencyManagement {
 dependencies {
 	compile project(':continuity.api')
 	compile project(':continuity.commons')
+	compile project(':continuity.idpa.application')
+	compile project(':continuity.idpa.annotation')
 		
 	// Spring Boot
 	

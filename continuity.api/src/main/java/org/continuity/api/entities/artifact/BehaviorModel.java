@@ -19,14 +19,6 @@ public class BehaviorModel {
 
 	@JsonInclude(Include.NON_NULL)
 	private List<Behavior> behaviors;
-	
-	public void setBehaviors(List<Behavior> behaviors) {
-		this.behaviors = behaviors;
-	}
-
-	public List<Behavior> getBehaviors() {
-		return behaviors;
-	}
 
 	public BehaviorModel() {
 
@@ -38,7 +30,14 @@ public class BehaviorModel {
 		for (String[][] csvRepresentation : csvRepresentations) {
 			behaviors.add(BehaviorModelSerializer.deserializeBehaviorModel(csvRepresentation));
 		}
+	}
+	
+	public void setBehaviors(List<Behavior> behaviors) {
+		this.behaviors = behaviors;
+	}
 
+	public List<Behavior> getBehaviors() {
+		return behaviors;
 	}
 
 	public static class Behavior {
@@ -56,6 +55,16 @@ public class BehaviorModel {
 		@JsonInclude(Include.NON_NULL)
 		private List<MarkovState> markovStates;
 
+		public Behavior() {
+		}
+		
+		public Behavior(String name, String initialState, Double probability, List<MarkovState> markovStates) {
+			this.name = name;
+			this.initialState = initialState;
+			this.probability = probability;
+			this.markovStates = markovStates;
+		}
+		
 		public String getName() {
 			return name;
 		}
@@ -96,6 +105,24 @@ public class BehaviorModel {
 			}
 			return null;
 		}
+		
+		@Override
+		public Behavior clone() {
+			Behavior behavior = null;
+			try {
+				behavior = (Behavior) super.clone();
+			} catch (CloneNotSupportedException e) {
+				behavior = new Behavior(this.name, this.initialState, this.probability, null);
+			}
+			if(this.markovStates == null) {
+				return behavior;
+			}
+			behavior.setMarkovStates(new ArrayList<MarkovState>());
+			for(MarkovState state : this.markovStates) {
+				behavior.getMarkovStates().add(state.clone());
+			}
+			return behavior;
+		}
 	}
 
 	public static class MarkovState {
@@ -107,6 +134,14 @@ public class BehaviorModel {
 		@JsonInclude(Include.NON_NULL)
 		private List<Transition> transitions;
 
+		public MarkovState() {
+		}
+		
+		public MarkovState(String id, List<Transition> transitions) {
+			this.id = id;
+			this.transitions = transitions;
+		}
+		
 		public String getId() {
 			return id;
 		}
@@ -129,6 +164,25 @@ public class BehaviorModel {
 			} else {
 				transitions.add(new Transition(target, propability, mean, deviation));
 			}
+		}
+		
+		@Override
+		public MarkovState clone() {
+			MarkovState state = null;
+			
+			try {
+				state = (MarkovState) super.clone();
+			} catch (CloneNotSupportedException e) {
+				state = new MarkovState(this.id, null);
+			}
+			if(this.transitions == null) {
+				return state;
+			}
+			state.setTransitions(new ArrayList<Transition>());
+			for(Transition transition : this.transitions) {
+				state.getTransitions().add(transition.clone());
+			}
+			return state;
 		}
 
 	}
@@ -205,6 +259,15 @@ public class BehaviorModel {
 
 		public void setDeviation(Double deviation) {
 			this.deviation = deviation;
+		}
+		
+		@Override
+		public Transition clone() {
+			try {
+				return (Transition) super.clone();
+			} catch (CloneNotSupportedException e) {
+				return new Transition(this.targetState, this.probability, this.mean, this.deviation);
+			}
 		}
 	}
 }

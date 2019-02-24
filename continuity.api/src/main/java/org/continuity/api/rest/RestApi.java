@@ -772,7 +772,9 @@ public class RestApi {
 
 			public static class Paths {
 
-				public static final String CREATE = "/{id}";
+				public static final String CREATE = "/{tag}";
+				public static final String UPLOAD = "/{tag}";
+				public static final String DELETE = "/{tag}";
 
 				private Paths() {
 				}

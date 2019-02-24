@@ -1,5 +1,7 @@
 package org.continuity.commons.storage;
 
+import java.util.Map;
+
 import m4jdsl.WorkloadModel;
 
 public interface ArtifactStorage<T> {
@@ -43,6 +45,13 @@ public interface ArtifactStorage<T> {
 	 */
 	T get(String id);
 
+	/**
+	 * Retrieves all models.
+	 *
+	 * @return A list of {@link WorkloadModel}.
+	 */
+	Map<String, T> getAll();
+	
 	/**
 	 * Removes the model with the passed id and returns whether the id was present.
 	 *

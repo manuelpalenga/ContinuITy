@@ -57,7 +57,7 @@
               "targetState": "shopUsingGET", 
               "probability": 0.7, 
               "think-time-mean": 543, 
-              "think-time-deviation": 0 
+              "think-time-deviation": 12 
             } 
           ] 
         } 
@@ -180,8 +180,8 @@
             { 
               "targetState": "shopUsingGET", 
               "probability": 0.7, 
-              "think-time-mean": 650, 
-              "think-time-deviation": 120 
+              "think-time-mean": 650.77, 
+              "think-time-deviation": 120.24 
             }
           ] 
         }, 
@@ -197,8 +197,8 @@
             { 
               "targetState": "searchUsingGET", 
               "probability": 0.2, 
-              "think-time-mean": 450, 
-              "think-time-deviation": 0 
+              "think-time-mean": 450.72, 
+              "think-time-deviation": 48.91 
             } 
           ] 
         } 
